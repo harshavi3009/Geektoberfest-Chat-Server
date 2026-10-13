@@ -48,6 +48,8 @@ module.exports = async () => {
       REDIS_URL: `redis://127.0.0.1:${redis.port}`,
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256-0123456789',
       FRONTEND_ORIGIN: 'http://localhost:5173',
+      // Read the client address from X-Forwarded-For, which the helpers set per request (see client.cjs).
+      TRUST_PROXY: 'true',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

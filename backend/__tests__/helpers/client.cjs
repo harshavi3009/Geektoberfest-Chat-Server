@@ -3,6 +3,14 @@ const { io } = require('socket.io-client');
 const baseUrl = () => process.env.TEST_SERVER_URL;
 const PASSWORD = 'correct-horse-battery';
 
+let addressCounter = 0;
+// Every request and socket gets its own fake client address, so the per-IP connection and request
+// limits apply to each test separately instead of to the whole test run.
+const nextAddress = () => {
+  addressCounter += 1;
+  return `10.${Math.floor(addressCounter / 65536) % 256}.${Math.floor(addressCounter / 256) % 256}.${addressCounter % 256}`;
+};
+
 let counter = 0;
 // Usernames are 3-24 characters, so keep them short and unique across the whole run.
 const uniqueName = (prefix) => `${prefix}${Date.now().toString(36).slice(-5)}${(counter += 1)}`;
@@ -11,6 +19,7 @@ async function request(method, path, { body, token } = {}) {
   const response = await fetch(`${baseUrl()}${path}`, {
     method,
     headers: {
+      'X-Forwarded-For': nextAddress(),
       ...(body && { 'Content-Type': 'application/json' }),
       ...(token && { Authorization: `Bearer ${token}` }),
     },
@@ -29,7 +38,13 @@ async function register(prefix = 'user') {
 
 // A connected client that records everything the server sends, so tests can wait for events.
 function connect(token) {
-  const socket = io(baseUrl(), { transports: ['websocket'], forceNew: true, auth: { token }, reconnection: false });
+  const socket = io(baseUrl(), {
+    transports: ['websocket'],
+    forceNew: true,
+    auth: { token },
+    reconnection: false,
+    extraHeaders: { 'X-Forwarded-For': nextAddress() },
+  });
   const events = [];
   socket.onAny((name, ...args) => events.push({ name, args }));
 
